@@ -35,6 +35,8 @@ textarea { resize: vertical; }
 #login { max-width: 390px; margin: 7vh auto 0; padding: 24px; }
 #login label { display: block; font-size: 20px; font-weight: bold; margin-bottom: 14px; }
 #login button { width: 100%; margin-top: 4px; }
+#reconnect { max-width: 480px; margin: 7vh auto 0; }
+#reconnect p { margin: 10px 0 16px; }
 .surface { padding: 16px; }
 .surface h2 { margin-bottom: 12px; }
 #pad { position: relative; height: 280px; height: 35vh; min-height: 170px; max-height: 400px;

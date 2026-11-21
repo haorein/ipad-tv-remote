@@ -8,6 +8,7 @@
     }
 
     var connected = false;
+    var waiting = false, retryTimer = null, retryDelay = 2000, networkGeneration = 0;
     var backend = "";
     var activeSite = null;
     var siteRequest = null;
@@ -38,6 +39,11 @@
         }
     }
     function connection(active) {
+        waiting = false;
+        clearTimeout(retryTimer);
+        retryTimer = null;
+        retryDelay = 2000;
+        show("reconnect", false);
         connected = active;
         if (!active) {
             siteRequest = null;
@@ -48,9 +54,40 @@
         show("login", !active);
         status();
     }
+    function checkConnection() {
+        if (document.hidden || siteRequest) { return; }
+        clearTimeout(retryTimer);
+        retryTimer = null;
+        configure();
+    }
+    function waitForComputer() {
+        if (!waiting) {
+            networkGeneration += 1;
+            queue = [];
+            busy = false;
+            clearLongPress();
+            mode = "";
+            pad.className = "";
+            dx = dy = scroll = 0;
+            connection(false);
+            waiting = true;
+            show("login", false);
+            show("reconnect", true);
+            status("暂时连不上电视电脑");
+        }
+        siteRequest = null;
+        if (!document.hidden && retryTimer === null) {
+            retryTimer = setTimeout(function () {
+                retryTimer = null;
+                checkConnection();
+            }, retryDelay);
+            retryDelay = Math.min(15000, retryDelay * 2);
+        }
+    }
     function request(path, data, done) {
         var xhr = new XMLHttpRequest();
         var complete = false;
+        var generation = networkGeneration;
         var timeout = setTimeout(function () {
             finish(0, {error: "连接超时"});
             xhr.abort();
@@ -59,6 +96,8 @@
             if (complete) { return; }
             complete = true;
             clearTimeout(timeout);
+            if (generation !== networkGeneration) { return; }
+            if (code === 0) { waitForComputer(); return; }
             done(code, result);
         }
         xhr.open(data === null ? "GET" : "POST", "/api/" + path, true);
@@ -122,7 +161,7 @@
         request(path, data, function (code, result) {
             if (siteRequest !== pending) { return; }
             siteRequest = null;
-            if (code === 409 || code === 0) {
+            if (code === 409) {
                 configure(result.error || "请确认当前网站后重试");
                 return;
             }
@@ -139,6 +178,7 @@
         request("config", null, function (code, data) {
             if (siteRequest !== pending) { return; }
             siteRequest = null;
+            if (code === 502 || code === 503 || code === 504) { waitForComputer(); return; }
             if (code !== 200) {
                 connection(false);
                 if (code !== 401) { status(data.error || "连接中断，请重试"); }
@@ -345,10 +385,16 @@
     pad.addEventListener("touchend", touchEnd, touchOptions);
     pad.addEventListener("touchcancel", function (event) { event.preventDefault(); cancel(); }, touchOptions);
     pad.addEventListener("contextmenu", function (event) { event.preventDefault(); }, false);
-    document.addEventListener("visibilitychange", function () { if (document.hidden) { cancel(); } }, false);
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden) { cancel(); }
+        else if (waiting || connected) { checkConnection(); }
+    }, false);
     window.addEventListener("pagehide", cancel, false);
     window.addEventListener("blur", cancel, false);
-    window.addEventListener("offline", cancel, false);
+    window.addEventListener("offline", waitForComputer, false);
+    window.addEventListener("online", checkConnection, false);
+    window.addEventListener("pageshow", function (event) { if (event.persisted) { checkConnection(); } }, false);
+    el("retry").onclick = checkConnection;
     setInterval(function () {
         if (!connected || busy) { return; }
         flush();

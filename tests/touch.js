@@ -11,6 +11,7 @@ var nextTimer = 0;
 var windowEvents = {};
 var interval;
 var siteRequests = [];
+var configCode = 200, reads = 0;
 var mediaRequests = [];
 var delayPointer = false, pendingPointer;
 var config = {backend: "x11", active_site: null, sites: [
@@ -47,6 +48,11 @@ function XHR() {
         this.onreadystatechange();
     };
     this.send = function (body) {
+        if (this.path === "/api/config") {
+            reads += 1;
+            this.respond(configCode, configCode === 200 ? config : {});
+            return;
+        }
         if (this.path === "/api/pointer") {
             actions.push(JSON.parse(body));
             if (delayPointer) { pendingPointer = this; return; }
@@ -56,7 +62,7 @@ function XHR() {
             this.body = JSON.parse(body);
             siteRequests.push(this);
         } else {
-            this.respond(200, this.path === "/api/config" ? config : {});
+            this.respond(200, {});
         }
     };
 }
@@ -159,7 +165,7 @@ assert.deepStrictEqual(mediaRequests, []);
 delayPointer = false;
 pendingPointer.respond(200, {});
 expect(["move"]);
-assert.deepStrictEqual(mediaRequests, [{id: "video-fullscreen"}]);
+assert.deepStrictEqual(mediaRequests.splice(0), [{id: "video-fullscreen"}]);
 console.log("Video fullscreen waits for the final pointer move");
 
 function siteButton(index) { return nodes.sites.getElementsByTagName("button")[index]; }
@@ -224,3 +230,32 @@ submitted("login");
 assertSite(1);
 assert.strictEqual(nodes["search-help"].getAttribute("hidden"), "");
 console.log("Site search simulation passed");
+
+// A gesture in flight and a media action queued behind it must not replay after resume.
+delayPointer = true;
+touch("start", [initial]);
+touch("end", []);
+fullscreen.onclick();
+pendingPointer.respond(0, {});
+delayPointer = false;
+assert.strictEqual(nodes.reconnect.getAttribute("hidden"), null);
+assert.strictEqual(nodes.login.getAttribute("hidden"), "");
+assert.strictEqual(nodes.remote.getAttribute("hidden"), "");
+var beforeRetry = reads;
+configCode = 0;
+advance(2000);
+assert.strictEqual(reads, beforeRetry + 1);
+configCode = 200;
+advance(4000);
+assertSite(1);
+assert.strictEqual(nodes.reconnect.getAttribute("hidden"), "");
+assert.strictEqual(nodes.remote.getAttribute("hidden"), null);
+expect(["click"]);
+assert.deepStrictEqual(mediaRequests, []);
+windowEvents.offline();
+configCode = 401;
+windowEvents.online();
+assert.strictEqual(nodes.reconnect.getAttribute("hidden"), "");
+assert.strictEqual(nodes.login.getAttribute("hidden"), null);
+assert.strictEqual(nodes.remote.getAttribute("hidden"), "");
+console.log("Resume retries read-only requests, discards input and handles expired sessions");

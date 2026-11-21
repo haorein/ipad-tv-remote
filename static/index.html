@@ -20,6 +20,12 @@
     <button type="button" id="logout" hidden>退出</button>
   </header>
 
+  <section id="reconnect" class="card" hidden>
+    <h2>等待电脑上线</h2>
+    <p>请确认手机连着家庭 Wi-Fi。如果电脑已休眠，请在路由器的网络唤醒页面或手机 WoL 工具中唤醒它，再回到这里。页面会自动重连。</p>
+    <button type="button" id="retry">立即重连</button>
+  </section>
+
   <form id="login" class="card" hidden>
     <label for="password">遥控口令</label>
     <input id="password" type="password" autocomplete="current-password" required maxlength="256">
