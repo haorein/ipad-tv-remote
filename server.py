@@ -250,15 +250,18 @@ def action_for(path, data, sites):
         require(type(enter) is bool)
         return ("paste", user_text(value, 4096), enter)
     if path == "/api/key":
-        return ("key", KEYS[choice(fields(data, ("id",))[0], KEYS)])
+        key, = fields(data, ("id",))
+        if key == "video-fullscreen":  # Remotes still showing the old keyboard layout.
+            return ("video-fullscreen",)
+        return ("key", KEYS[choice(key, KEYS)])
     if path == "/api/volume":
         return ("volume", choice(fields(data, ("id",))[0], ("up", "down", "mute")))
     if path == "/api/media":
-        choice(fields(data, ("id",))[0], ("play-pause",))
-        return ("media",)
+        media = choice(fields(data, ("id",))[0], ("play-pause", "video-fullscreen"))
+        return ("media",) if media == "play-pause" else ("video-fullscreen",)
     if path == "/api/open-site":
         site_id = choice(fields(data, ("id",))[0], sites)
-        return ("open-site", site_id, sites[site_id]["url"])
+        return ("open-site", sites[site_id])
     if path == "/api/search":
         require(type(data) is dict)
         paste = "mode" in data
@@ -314,12 +317,21 @@ class Input:
         with self.lock:
             if method == "search":
                 site_id, method, *args = args
-                if self.active_site != site_id:
+                if not self.active_site or self.active_site["id"] != site_id:
                     raise SiteChanged()
             if method == "open-site":
-                site_id, url = args
-                self.desktop.open(url)
-                self.active_site = site_id
+                site, = args
+                self.desktop.open(site["url"])
+                self.active_site = site
+                return
+            if method == "video-fullscreen":
+                if self.owner:
+                    raise ValueError("Drag in progress")
+                host = urlsplit(self.active_site["url"]).hostname if self.active_site else None
+                if host in ("youtube.com", "www.youtube.com"):
+                    self.desktop.key(("f", (33,)))
+                else:
+                    self.desktop.pointer("double-click", ())
                 return
             if method != "pointer":
                 getattr(self.desktop, method)(*args)
@@ -415,7 +427,8 @@ class Handler(BaseHTTPRequestHandler):
                     item["searchable"] = "search_url" in site
                     data["sites"].append(item)
                 with self.server.inputs.lock:
-                    data["active_site"] = self.server.inputs.active_site
+                    site = self.server.inputs.active_site
+                    data["active_site"] = site["id"] if site else None
             self.reply(200, data)
         else:
             self.reply(404, {"error": "路径不存在"})

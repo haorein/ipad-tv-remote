@@ -117,8 +117,11 @@ class HttpTest(unittest.TestCase):
             ("text", {"text": "中", "enter": 1}),
             ("text", {"text": "a\x00b", "enter": False}),
             ("key", {"id": "Ctrl+Alt+Delete"}),
+            ("key", {"id": "fullscreen"}),
             ("volume", {"id": 101}),
             ("media", {"id": "exec"}),
+            ("media", {"id": "video-fullscreen", "key": "F11"}),
+            ("media", {"id": "video-fullscreen", "site": "youtube"}),
             ("open-site", {"url": "https://example.test/"}),
             ("open-site", {"id": "youtube", "url": "https://example.test/"}),
             ("search", {"query": "keyword"}), ("search", {"id": "youtube", "query": "   "}),
@@ -192,6 +195,28 @@ class HttpTest(unittest.TestCase):
         _, prefix, encoded = url.path.split("/")
         self.assertEqual((prefix, unquote(encoded)), ("find", archive["query"]))
 
+    def test_video_fullscreen_uses_last_opened_site_across_remotes(self):
+        first, second = self.login(), self.login()
+        desktop = self.server.inputs.desktop
+        toggle = {"id": "video-fullscreen"}
+        self.assertEqual(self.call("/api/media", toggle)[0], 401)
+        self.server.sites["renamed"] = {"id": "renamed", "url": "https://youtube.com/"}
+        for site in (None, "youtube", "kubb", "olevod", "renamed", "manual"):
+            with self.subTest(site=site):
+                if site:
+                    self.assertEqual(self.call("/api/open-site", {"id": site}, cookie=first)[0], 200)
+                desktop.reset_mock()
+                self.assertEqual(self.call("/api/media", toggle, cookie=second)[0], 200)
+                if site in ("youtube", "renamed"):
+                    desktop.key.assert_called_once_with(("f", (33,)))
+                    desktop.pointer.assert_not_called()
+                else:
+                    desktop.pointer.assert_called_once_with("double-click", ())
+                    desktop.key.assert_not_called()
+        desktop.reset_mock()
+        self.assertEqual(self.call("/api/key", toggle, cookie=first)[0], 200)
+        desktop.pointer.assert_called_once_with("double-click", ())
+
     def test_search_field_requires_explicit_paste_mode_and_matching_site(self):
         cookie = self.login()
         request = {"id": "manual", "query": "中文 🙂"}
@@ -214,6 +239,9 @@ class HttpTest(unittest.TestCase):
         desktop.pointer.side_effect = lambda action, _: released.set() if action == "up" else None
         with patch("server.DRAG_TIMEOUT", .15):
             self.assertEqual(self.call("/api/pointer", {"action": "down"}, cookie=first)[0], 200)
+            for remote in (first, second):
+                self.assertEqual(self.call("/api/media", {"id": "video-fullscreen"}, cookie=remote)[0], 400)
+            desktop.pointer.assert_called_once_with("down", ())
             self.assertEqual(self.call("/api/pointer", {"action": "up"}, cookie=second)[0], 200)
             self.assertFalse(released.is_set())
             self.assertEqual(self.call("/api/pointer", {"action": "up"}, cookie=first)[0], 200)
@@ -234,6 +262,11 @@ class CommandTest(unittest.TestCase):
                 move = (["xdotool", "mousemove_relative", "--", "-4", "9"] if desktop.x11
                         else ["ydotool", "mousemove", "-x", "-4", "-y", "9"])
                 desktop.run.assert_called_once_with(move)
+                desktop.run.reset_mock()
+                desktop.pointer("double-click", ())
+                clicks = (["xdotool", "click", "--repeat", "2", "--delay", "80", "1"] if desktop.x11 else
+                          ["ydotool", "click", "--repeat", "2", "--next-delay", "40", "0xC0"])
+                desktop.run.assert_called_once_with(clicks)
                 desktop.run.reset_mock()
                 desktop.key(KEYS["address"])
                 keys = (["xdotool", "key", "--clearmodifiers", "ctrl+l"] if desktop.x11

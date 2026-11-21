@@ -52,9 +52,12 @@ textarea { resize: vertical; }
 .dragging .drag-label { display: block; }
 #gestures { margin: 10px 0 0; color: #c4d0c9; font-size: 14px; }
 #gestures span { display: inline-block; margin-right: 1em; }
-#media { display: -webkit-flex; display: flex; margin: 12px 0; }
-#media button { -webkit-flex: 1 1 auto; flex: 1 1 auto; margin-left: 6px; padding: 10px 6px; }
-#media .play { margin-left: 0; -webkit-flex-grow: 2; flex-grow: 2; }
+#media, .media-row { display: -webkit-flex; display: flex; }
+#media { margin: 12px 0 6px; }
+.media-row { -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+.media-row + .media-row, .media-row button + button { margin-left: 6px; }
+#media button { -webkit-flex: 1 1 auto; flex: 1 1 auto; padding: 10px 6px; }
+#fullscreen-help { margin-bottom: 12px; color: #bdcbc2; font-size: 14px; }
 .play-icon { display: inline-block; margin-right: 8px; width: 0; height: 0;
   border: solid transparent; border-width: 6px 0 6px 9px; border-left-color: currentColor; }
 .keyboard-card { padding: 0; }
@@ -88,6 +91,8 @@ textarea { resize: vertical; }
   main { padding: 14px 12px 24px; }
   header { margin-bottom: 14px; }
   .surface, .shortcuts { padding: 12px; }
-  #media button { font-size: 15px; margin-left: 4px; }
+  #media { display: block; }
+  .media-row + .media-row { margin: 6px 0 0; }
+  #media button { font-size: 15px; }
   .play-icon { display: none; }
 }

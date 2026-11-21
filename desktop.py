@@ -15,7 +15,6 @@ KEYS = {
     "address": ("ctrl+l", (29, 38)), "back": ("alt+Left", (56, 105)),
     "forward": ("alt+Right", (56, 106)), "new-tab": ("ctrl+t", (29, 20)),
     "close-tab": ("ctrl+w", (29, 17)), "refresh": ("ctrl+r", (29, 19)),
-    "fullscreen": ("F11", (87,)), "video-fullscreen": ("f", (33,)),
 }
 VOLUME = {
     "wpctl": {"up": ["set-volume", "-l", "1", "@DEFAULT_AUDIO_SINK@", "5%+"],
@@ -72,6 +71,9 @@ class Desktop:
             steps = values[0]
             args = (["click", "--repeat", str(abs(steps)), "4" if steps > 0 else "5"]
                     if self.x11 else ["mousemove", "-w", "--", "0", str(steps)])
+        elif action == "double-click":
+            args = (["click", "--repeat", "2", "--delay", "80", "1"] if self.x11 else
+                    ["click", "--repeat", "2", "--next-delay", "40", "0xC0"])
         elif self.x11:
             args = [{"click": "click", "down": "mousedown", "up": "mouseup"}[action], "1"]
         else:

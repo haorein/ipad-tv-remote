@@ -26,8 +26,7 @@
     var browserKeys = [
         ["address", "地址栏"],
         ["back", "返回"], ["forward", "前进"], ["new-tab", "新标签"],
-        ["close-tab", "关闭标签"], ["refresh", "刷新"], ["fullscreen", "全屏"],
-        ["video-fullscreen", "视频全屏"]
+        ["close-tab", "关闭标签"], ["refresh", "刷新"]
     ];
 
     function status(message) {
@@ -206,17 +205,25 @@
     browserKeys.forEach(function (key) { keyButton(el("browser-keys"), key); });
     Array.prototype.forEach.call(el("media").getElementsByTagName("button"), function (node) {
         node.onclick = function () {
-            action(node.getAttribute("data-api"), {id: node.getAttribute("data-id")});
+            var path = node.getAttribute("data-api");
+            var data = {id: node.getAttribute("data-id")};
+            if (data.id === "video-fullscreen") {
+                // Finish any queued pointer moves before double-clicking the video.
+                enqueue(data, path);
+            } else {
+                action(path, data);
+            }
         };
     });
 
     function pump() {
         if (busy || !queue.length) { return; }
         busy = true;
-        request("pointer", queue.shift(), function (code, result) {
+        var item = queue.shift();
+        request(item.path, item.data, function (code, result) {
             busy = false;
             if (code !== 200) {
-                queue = queue.filter(function (item) { return item.action === "up"; });
+                queue = queue.filter(function (pending) { return pending.data.action === "up"; });
                 if (mode === "drag") { cancel(); }
                 if (code === 401) { connection(false); }
                 status(result.error || "触控板连接中断");
@@ -226,9 +233,12 @@
             pump();
         });
     }
-    function enqueue(data) {
-        if (queue.length >= 8 && data.action !== "up") { return; }
-        queue.push(data);
+    function enqueue(data, path) {
+        if (queue.length >= 8 && data.action !== "up") {
+            if (path) { status("触控板忙，请稍后重试"); }
+            return;
+        }
+        queue.push({path: path || "pointer", data: data});
         pump();
     }
     function center(touches) { return (touches[0].clientY + touches[1].clientY) / 2; }

@@ -11,6 +11,8 @@ var nextTimer = 0;
 var windowEvents = {};
 var interval;
 var siteRequests = [];
+var mediaRequests = [];
+var delayPointer = false, pendingPointer;
 var config = {backend: "x11", active_site: null, sites: [
     {id: "first", name: "视频 A", searchable: true},
     {id: "second", name: "视频 B", searchable: true},
@@ -45,7 +47,11 @@ function XHR() {
         this.onreadystatechange();
     };
     this.send = function (body) {
-        if (this.path === "/api/pointer") { actions.push(JSON.parse(body)); }
+        if (this.path === "/api/pointer") {
+            actions.push(JSON.parse(body));
+            if (delayPointer) { pendingPointer = this; return; }
+        }
+        if (this.path === "/api/media") { mediaRequests.push(JSON.parse(body)); }
         if (this.path === "/api/open-site" || this.path === "/api/search") {
             this.body = JSON.parse(body);
             siteRequests.push(this);
@@ -55,6 +61,11 @@ function XHR() {
     };
 }
 
+var fullscreen = node();
+fullscreen.setAttribute("data-api", "media");
+fullscreen.setAttribute("data-id", "video-fullscreen");
+nodes.media = node();
+nodes.media.appendChild(fullscreen);
 vm.runInNewContext(fs.readFileSync("static/app.js", "utf8"), {
     document: {
         getElementById: function (id) { return nodes[id] || (nodes[id] = node()); },
@@ -138,6 +149,18 @@ touch("end", [initial]);
 touch("end", []);
 expect(["scroll"]);
 console.log("Touch simulation passed");
+
+delayPointer = true;
+touch("start", [initial]);
+touch("move", [point(1, 80, 45)]);
+touch("end", []);
+fullscreen.onclick();
+assert.deepStrictEqual(mediaRequests, []);
+delayPointer = false;
+pendingPointer.respond(200, {});
+expect(["move"]);
+assert.deepStrictEqual(mediaRequests, [{id: "video-fullscreen"}]);
+console.log("Video fullscreen waits for the final pointer move");
 
 function siteButton(index) { return nodes.sites.getElementsByTagName("button")[index]; }
 function submitted(id) { nodes[id].onsubmit({preventDefault: function () {}}); }

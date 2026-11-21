@@ -38,11 +38,17 @@
       </section>
 
       <div id="media" role="group" aria-label="音量和播放">
-        <button type="button" class="play primary" data-api="media" data-id="play-pause"><i class="play-icon" aria-hidden="true"></i>播放 / 暂停</button>
-        <button type="button" data-api="volume" data-id="mute">静音</button>
-        <button type="button" class="volume" data-api="volume" data-id="down" aria-label="降低音量">音量 −</button>
-        <button type="button" class="volume" data-api="volume" data-id="up" aria-label="提高音量">音量 +</button>
+        <div class="media-row">
+          <button type="button" class="play primary" data-api="media" data-id="play-pause"><i class="play-icon" aria-hidden="true"></i>播放 / 暂停</button>
+          <button type="button" data-api="media" data-id="video-fullscreen" aria-describedby="fullscreen-help">视频全屏</button>
+        </div>
+        <div class="media-row">
+          <button type="button" data-api="volume" data-id="mute">静音</button>
+          <button type="button" class="volume" data-api="volume" data-id="down" aria-label="降低音量">音量 −</button>
+          <button type="button" class="volume" data-api="volume" data-id="up" aria-label="提高音量">音量 +</button>
+        </div>
       </div>
+      <p id="fullscreen-help">酷播和欧乐播放后，把电视指针移到视频画面中间，再点「视频全屏」。再点一次可退出。</p>
 
       <section class="card keyboard-card">
         <button type="button" id="toggle" aria-expanded="false" aria-controls="keyboard">键盘与快捷键<span class="chevron" aria-hidden="true"></span></button>
