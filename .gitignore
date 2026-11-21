@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+/config.json
+/auth.json
+/.aws/
+/.codex/
+/.agents/
+/ipad-tv-remote.bundle

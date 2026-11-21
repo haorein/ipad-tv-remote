@@ -1,0 +1,17 @@
+[Unit]
+Description=iPad LAN TV remote
+PartOf=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/share/ipad-tv-remote/server.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=25
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

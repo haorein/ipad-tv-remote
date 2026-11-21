@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>电视遥控器</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <span class="tv-mark" aria-hidden="true"></span>
+    <div class="device">
+      <h1>电视遥控器</h1>
+      <p id="status" role="status" aria-live="polite">正在连接…</p>
+    </div>
+    <button type="button" id="logout" hidden>退出</button>
+  </header>
+
+  <form id="login" class="card" hidden>
+    <label for="password">遥控口令</label>
+    <input id="password" type="password" autocomplete="current-password" required maxlength="256">
+    <button class="primary">连接电视</button>
+  </form>
+
+  <div id="remote" hidden>
+    <div class="controls">
+      <section class="surface" aria-labelledby="pad-heading">
+        <h2 id="pad-heading">触控板</h2>
+        <div id="pad" aria-label="触控板" aria-describedby="gestures">
+          <span class="crosshair" aria-hidden="true"></span>
+          <span class="drag-label" aria-hidden="true">拖动中</span>
+        </div>
+        <p id="gestures"><span>单指移动 · 轻点单击</span><span>长按拖动 · 双指滚动</span></p>
+      </section>
+
+      <div id="media" role="group" aria-label="音量和播放">
+        <button type="button" class="play primary" data-api="media" data-id="play-pause"><i class="play-icon" aria-hidden="true"></i>播放 / 暂停</button>
+        <button type="button" data-api="volume" data-id="mute">静音</button>
+        <button type="button" class="volume" data-api="volume" data-id="down" aria-label="降低音量">音量 −</button>
+        <button type="button" class="volume" data-api="volume" data-id="up" aria-label="提高音量">音量 +</button>
+      </div>
+
+      <section class="card keyboard-card">
+        <button type="button" id="toggle" aria-expanded="false" aria-controls="keyboard">键盘与快捷键<span class="chevron" aria-hidden="true"></span></button>
+        <div id="keyboard" hidden>
+          <label for="text">发送到电视输入框</label>
+          <textarea id="text" rows="2" maxlength="4096" aria-describedby="clipboard"></textarea>
+          <p id="clipboard">发送文字会覆盖 Linux 剪贴板。</p>
+          <div class="buttons">
+            <button type="button" class="primary" id="send">发送</button>
+            <button type="button" id="send-enter">发送并回车</button>
+          </div>
+          <h3 id="keys-heading">常用按键</h3>
+          <div class="buttons" id="keys" role="group" aria-labelledby="keys-heading"></div>
+          <h3 id="browser-heading">浏览器快捷键</h3>
+          <div class="buttons" id="browser-keys" role="group" aria-labelledby="browser-heading"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card shortcuts">
+      <h2>打开网站</h2>
+      <div id="sites"></div>
+      <form id="search">
+        <label for="query">YouTube 搜索</label>
+        <input id="query" type="search" placeholder="输入关键词" required maxlength="1024">
+        <button>在电视上搜索</button>
+      </form>
+    </section>
+  </div>
+</main>
+</body>
+</html>
