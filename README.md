@@ -7,10 +7,10 @@
 ## 首次使用
 
 1. **接上电视。** 用 HDMI 等视频接口连接 Linux 电脑和电视，在电视上切到对应输入源，登录 Linux 图形桌面。
-2. **运行向导。** 下载并解压本项目（或克隆仓库），在项目目录打开终端，以普通桌面用户运行下面的命令。如果缺少工具，向导会先列出要安装的软件包和命令。按提示设置至少 8 个字符的遥控口令，并确认让服务随图形登录启动。
+2. **从终端安装。** 在 Linux 图形桌面上以普通用户打开终端，复制下面这行命令。Git 会将项目下载到当前目录下的 `ipad-tv-remote`，然后启动交互式安装向导。按提示确认所需依赖，设置至少 8 个字符的遥控口令，并启用登录自启。
 
    ```sh
-   sh install.sh --setup
+   git clone --depth 1 https://github.com/haorein/ipad-tv-remote.git && sh ipad-tv-remote/install.sh --setup
    ```
 
 3. **扫码连接。** 手机或平板连到与电脑相通的家庭 Wi-Fi，扫描电视上的二维码并输入遥控口令。电脑可以用网线连接路由器。也可以在手机浏览器直接输入二维码旁的网址。有多个接口时，选择连接家庭路由器的那一个。
@@ -22,6 +22,19 @@
 <summary>手动安装、自定义配置与排错</summary>
 
 ## 手动安装
+
+已有项目目录时，从该目录执行 `sh install.sh --setup` 即可重新运行向导。通过 Git 克隆的用户可执行 `git pull --ff-only && sh install.sh --setup` 更新安装。已有口令和网站配置会保留。
+
+电脑上只有 curl 和 tar 时，也可以用下面的命令下载源码并启动同一个向导。请在可写目录中执行。第一步会新建源码目录，若已有同名目录，命令会停止。
+
+```sh
+mkdir ipad-tv-remote && (
+  cd ipad-tv-remote &&
+  curl -fL https://github.com/haorein/ipad-tv-remote/archive/refs/heads/main.tar.gz -o source.tar.gz &&
+  tar -xzf source.tar.gz --strip-components=1 &&
+  sh install.sh --setup
+)
+```
 
 向导适用于有 systemd 用户会话的 Linux 图形桌面。要单独检查桌面工具，运行 `sh install.sh --check`。要自行管理服务，在连接电视的 Linux 电脑上以普通用户运行以下命令。
 
