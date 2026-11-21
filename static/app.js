@@ -9,6 +9,8 @@
 
     var connected = false;
     var backend = "";
+    var activeSite = null;
+    var siteRequest = null;
     var pad = el("pad");
     var mode = "";
     var primary = null;
@@ -38,6 +40,10 @@
     }
     function connection(active) {
         connected = active;
+        if (!active) {
+            siteRequest = null;
+            selectSite(null);
+        }
         show("remote", active);
         show("logout", active);
         show("login", !active);
@@ -77,16 +83,63 @@
             else { status(); if (done) { done(); } }
         });
     }
-    function button(parent, text, path, id, color) {
+    function button(parent, text, handler) {
         var node = document.createElement("button");
         node.type = "button";
         node.textContent = text;
-        if (color) { node.style.borderLeftColor = color; }
-        node.onclick = function () { action(path, {id: id}); };
+        node.onclick = handler;
         parent.appendChild(node);
+        return node;
     }
-    function configure() {
+    function updateSiteControls() {
+        var buttons = el("sites").getElementsByTagName("button");
+        Array.prototype.forEach.call(buttons, function (node) {
+            node.disabled = !!siteRequest;
+            node.setAttribute("aria-pressed", activeSite && node.getAttribute("data-site") === activeSite.id ? "true" : "false");
+        });
+        el("search-submit").disabled = !!siteRequest;
+    }
+    function selectSite(site) {
+        if (!site || !activeSite || activeSite.id !== site.id) { el("query").value = ""; }
+        activeSite = site;
+        show("search", !!site);
+        show("search-help", site && !site.searchable);
+        if (site) {
+            el("search-label").textContent = "在「" + site.name + "」中搜索";
+            el("search-submit").textContent = site.searchable ? "在电视上搜索" : "粘贴到搜索框并回车";
+            if (site.searchable) {
+                el("query").removeAttribute("aria-describedby");
+            } else {
+                el("query").setAttribute("aria-describedby", "search-help");
+            }
+        }
+        updateSiteControls();
+    }
+    function siteAction(path, data, siteToOpen) {
+        if (siteRequest || !connected) { return; }
+        var pending = {};
+        siteRequest = pending;
+        updateSiteControls();
+        request(path, data, function (code, result) {
+            if (siteRequest !== pending) { return; }
+            siteRequest = null;
+            if (code === 409 || code === 0) {
+                configure(result.error || "请确认当前网站后重试");
+                return;
+            }
+            if (code === 401) { connection(false); }
+            if (code === 200 && siteToOpen) { selectSite(siteToOpen); }
+            else { updateSiteControls(); }
+            status(code === 200 ? "" : result.error || "连接中断，请重试");
+        });
+    }
+    function configure(message) {
+        var pending = {};
+        siteRequest = pending;
+        updateSiteControls();
         request("config", null, function (code, data) {
+            if (siteRequest !== pending) { return; }
+            siteRequest = null;
             if (code !== 200) {
                 connection(false);
                 if (code !== 401) { status(data.error || "连接中断，请重试"); }
@@ -94,10 +147,18 @@
             }
             backend = data.backend;
             el("sites").textContent = "";
+            var selected = null;
             data.sites.forEach(function (site) {
-                button(el("sites"), site.name, "open-site", site.id, site.color);
+                var node = button(el("sites"), site.name, function () {
+                    siteAction("open-site", {id: site.id}, site);
+                });
+                node.setAttribute("data-site", site.id);
+                if (site.color) { node.style.borderLeftColor = site.color; }
+                if (site.id === data.active_site) { selected = site; }
             });
+            selectSite(selected);
             connection(true);
+            if (message) { status(message); }
         });
     }
 
@@ -132,10 +193,17 @@
     el("send-enter").onclick = function () { sendText(true); };
     el("search").onsubmit = function (event) {
         event.preventDefault();
-        if (el("query").value) { action("search", {query: el("query").value}); }
+        var query = el("query").value;
+        if (!activeSite || !/\S/.test(query)) { return; }
+        var data = {id: activeSite.id, query: query};
+        if (!activeSite.searchable) { data.mode = "paste"; }
+        siteAction("search", data);
     };
-    keys.forEach(function (key) { button(el("keys"), key[1], "key", key[0]); });
-    browserKeys.forEach(function (key) { button(el("browser-keys"), key[1], "key", key[0]); });
+    function keyButton(parent, key) {
+        button(parent, key[1], function () { action("key", {id: key[0]}); });
+    }
+    keys.forEach(function (key) { keyButton(el("keys"), key); });
+    browserKeys.forEach(function (key) { keyButton(el("browser-keys"), key); });
     Array.prototype.forEach.call(el("media").getElementsByTagName("button"), function (node) {
         node.onclick = function () {
             action(node.getAttribute("data-api"), {id: node.getAttribute("data-id")});

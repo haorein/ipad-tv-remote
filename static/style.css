@@ -71,9 +71,13 @@ textarea { resize: vertical; }
 #sites button { position: relative; display: block; width: 100%; margin-top: 6px;
   border-left: 5px solid #97baaa; padding: 12px 38px 12px 14px; text-align: left; word-wrap: break-word; }
 #sites button:after { content: "↗"; position: absolute; right: 14px; top: 50%; margin-top: -11px; color: #b6c5bb; }
+#sites button[aria-pressed=true] { background: #31493d; font-weight: bold; }
+#sites button[aria-pressed=true]:after { content: "✓"; color: #b3eece; }
 #search { padding-top: 16px; border-top: 1px solid #3b4743; }
 #search label { font-weight: bold; }
 #search button { width: 100%; }
+#search-help { margin-top: 6px; color: #bdcbc2; font-size: 14px; }
+.shortcuts button:disabled { opacity: .65; }
 @media (min-width: 850px) and (orientation: landscape) {
   #remote:after { content: ""; display: block; clear: both; }
   .controls { float: left; width: 65%; }

@@ -17,7 +17,7 @@ import stat
 import subprocess
 import threading
 import time
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlsplit
 
 from desktop import Desktop, KEYS
 
@@ -30,6 +30,14 @@ MAX_BODY = 32768
 STATIC = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "application/javascript"),
           "/style.css": ("style.css", "text/css")}
 SECRETS_ROUNDS = 300000
+# Fill in verified routes when loading a config saved before per-site search.
+DEFAULT_SEARCH_URLS = {
+    ("https", "www.youtube.com", 443): "https://www.youtube.com/results?search_query={query}",
+    ("https", "kubb.tv", 443): "https://kubb.tv/search/{query}",
+    ("https", "www.kubb.tv", 443): "https://www.kubb.tv/search/{query}",
+    ("https", "olevod.com", 443): "https://olevod.com/search?q={query}",
+    ("https", "www.olevod.com", 443): "https://www.olevod.com/search?q={query}",
+}
 
 
 def require(condition):
@@ -45,6 +53,16 @@ def strict_object(pairs):
 
 def decode_json(data):
     return json.loads(data.decode("utf-8"), object_pairs_hook=strict_object)
+
+
+def site_origin(url):
+    require(0 < len(url) <= 2048 and url.isascii() and all(32 < ord(ch) < 127 for ch in url))
+    require("\\" not in url)
+    parsed = urlsplit(url)
+    require(parsed.scheme in ("http", "https") and parsed.hostname and
+            parsed.username is None and parsed.password is None and parsed.port != 0)
+    require("{" not in parsed.netloc and "}" not in parsed.netloc)
+    return parsed.scheme, parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80)
 
 
 def load_config(path):
@@ -66,19 +84,20 @@ def load_config(path):
     require(type(config["sites"]) is list and 0 < len(config["sites"]) <= 32)
     ids = set()
     for site in config["sites"]:
-        require(type(site) is dict and set(site) in ({"id", "name", "url"}, {"id", "name", "url", "color"}))
+        require(type(site) is dict and {"id", "name", "url"} <= set(site) <=
+                {"id", "name", "url", "color", "search_url"})
         require(all(type(value) is str for value in site.values()))
         require(re.fullmatch(r"[a-z0-9-]{1,32}", site["id"]) and site["id"] not in ids)
         require(0 < len(site["name"]) <= 60 and site["name"].isprintable())
         require(re.fullmatch(r"#[0-9a-fA-F]{6}", site.get("color", "#333333")))
-        url = site["url"]
-        require(0 < len(url) <= 2048 and url.isascii() and all(32 < ord(ch) < 127 for ch in url))
-        require("\\" not in url)
-        parsed = urlsplit(url)
-        require(parsed.scheme in ("http", "https") and parsed.hostname and
-                parsed.username is None and parsed.password is None and parsed.port != 0)
+        origin = site_origin(site["url"])
+        if "search_url" in site:
+            template = site["search_url"]
+            require(template.count("{query}") == 1 and template.count("{") == template.count("}") == 1)
+            require(site_origin(template) == origin)
+        elif origin in DEFAULT_SEARCH_URLS:
+            site["search_url"] = DEFAULT_SEARCH_URLS[origin]
         ids.add(site["id"])
-    require("youtube" in ids)
     return config
 
 
@@ -203,6 +222,16 @@ def user_text(value, maximum):
     return value
 
 
+def search_address(template, query):
+    if query in (".", ".."):
+        # Browsers navigate away from a search path for standalone dot segments.
+        for segment in urlsplit(template).path.split("/"):
+            if "{query}" in segment:
+                segment = segment.replace("{query}", query).lower().replace("%2e", ".")
+                require(segment not in (".", ".."))
+    return template.replace("{query}", quote(query, safe=""))
+
+
 def action_for(path, data, sites):
     if path == "/api/pointer":
         require(type(data) is dict)
@@ -228,12 +257,31 @@ def action_for(path, data, sites):
         choice(fields(data, ("id",))[0], ("play-pause",))
         return ("media",)
     if path == "/api/open-site":
-        return ("open", sites[choice(fields(data, ("id",))[0], sites)])
+        site_id = choice(fields(data, ("id",))[0], sites)
+        return ("open-site", site_id, sites[site_id]["url"])
     if path == "/api/search":
-        query = user_text(fields(data, ("query",))[0], 1024).strip()
+        require(type(data) is dict)
+        paste = "mode" in data
+        if paste:
+            site_id, query, mode = fields(data, ("id", "query", "mode"))
+            require(mode == "paste")
+        else:
+            site_id, query = fields(data, ("id", "query"))
+        site = sites[choice(site_id, sites)]
+        query = user_text(query, 1024)
+        require(not re.search(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]", query))
+        query = query.strip()
         require(query)
-        return ("open", "https://www.youtube.com/results?" + urlencode({"search_query": query}))
+        if paste:
+            require("search_url" not in site)
+            return ("search", site_id, "paste", query, True)
+        require("search_url" in site)
+        return ("search", site_id, "open", search_address(site["search_url"], query))
     return None
+
+
+class SiteChanged(Exception):
+    pass
 
 
 class Input:
@@ -241,6 +289,7 @@ class Input:
         self.desktop = desktop
         self.lock = threading.Lock()
         self.owner = None
+        self.active_site = None
         self.deadline = 0
         self.stop = threading.Event()
         self.worker = threading.Thread(target=self.watch, daemon=True)
@@ -263,6 +312,15 @@ class Input:
     def execute(self, session, command):
         method, *args = command
         with self.lock:
+            if method == "search":
+                site_id, method, *args = args
+                if self.active_site != site_id:
+                    raise SiteChanged()
+            if method == "open-site":
+                site_id, url = args
+                self.desktop.open(url)
+                self.active_site = site_id
+                return
             if method != "pointer":
                 getattr(self.desktop, method)(*args)
                 return
@@ -351,8 +409,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             data = {"backend": self.server.inputs.desktop.backend}
             if self.path == "/api/config":
-                data["sites"] = [{key: val for key, val in site.items() if key != "url"}
-                                 for site in self.server.config["sites"]]
+                data["sites"] = []
+                for site in self.server.config["sites"]:
+                    item = {key: site[key] for key in ("id", "name", "color") if key in site}
+                    item["searchable"] = "search_url" in site
+                    data["sites"].append(item)
+                with self.server.inputs.lock:
+                    data["active_site"] = self.server.inputs.active_site
             self.reply(200, data)
         else:
             self.reply(404, {"error": "路径不存在"})
@@ -403,6 +466,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(404, {"error": "动作不存在"})
                 return
             self.server.inputs.execute(session, command)
+        except SiteChanged:
+            self.reply(409, {"error": "网站已切换，请确认当前搜索站点"})
+            return
         except (ValueError, RecursionError):
             self.reply(400, {"error": "请求无效或另一操作正在拖动"})
             return
@@ -419,7 +485,7 @@ class Server(ThreadingHTTPServer):
 
     def __init__(self, config, auth, inputs):
         self.config, self.auth, self.inputs = config, auth, inputs
-        self.sites = {site["id"]: site["url"] for site in config["sites"]}
+        self.sites = {site["id"]: site for site in config["sites"]}
         super().__init__((config["bind"], config["port"]), Handler)
 
     def process_request(self, request, address):

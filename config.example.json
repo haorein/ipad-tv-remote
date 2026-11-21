@@ -5,8 +5,11 @@
   "networks": ["127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
   "hosts": [],
   "sites": [
-    {"id": "youtube", "name": "YouTube", "url": "https://www.youtube.com/", "color": "#a92636"},
-    {"id": "kubb", "name": "kubb.tv", "url": "https://kubb.tv/"},
-    {"id": "olevod", "name": "olevod.com", "url": "https://olevod.com/"}
+    {"id": "youtube", "name": "YouTube", "url": "https://www.youtube.com/", "color": "#a92636",
+     "search_url": "https://www.youtube.com/results?search_query={query}"},
+    {"id": "kubb", "name": "kubb.tv", "url": "https://www.kubb.tv/",
+     "search_url": "https://www.kubb.tv/search/{query}"},
+    {"id": "olevod", "name": "olevod.com", "url": "https://www.olevod.com/",
+     "search_url": "https://www.olevod.com/search?q={query}"}
   ]
 }

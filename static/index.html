@@ -65,10 +65,11 @@
     <section class="card shortcuts">
       <h2>打开网站</h2>
       <div id="sites"></div>
-      <form id="search">
-        <label for="query">YouTube 搜索</label>
+      <form id="search" hidden>
+        <label for="query" id="search-label">站内搜索</label>
+        <p id="search-help" hidden>先用触控板点一下电视网页里的搜索框。发送会覆盖 Linux 剪贴板。</p>
         <input id="query" type="search" placeholder="输入关键词" required maxlength="1024">
-        <button>在电视上搜索</button>
+        <button id="search-submit">在电视上搜索</button>
       </form>
     </section>
   </div>
