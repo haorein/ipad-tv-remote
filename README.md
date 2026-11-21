@@ -4,22 +4,46 @@
 
 手机或平板和 Linux 电脑连到同一可信局域网后，用移动浏览器打开遥控页面，就能把手里的设备当触控板和键盘，无需安装 App。可以点击、拖动、滚动、输入中英文，也能调音量、控制播放和快捷搜索 YouTube。页面设计也兼顾旧版 iPad Safari。
 
-## Ubuntu X11 安装
+## 首次使用
 
-在连接电视的 Linux 电脑上登录图形桌面，从桌面终端运行以下命令。主服务始终以普通用户运行。Ubuntu 主机若缺少依赖，可由管理员运行 `sudo apt install xdotool xclip playerctl`。
+1. **接上电视。** 用 HDMI 等视频接口连接 Linux 电脑和电视，在电视上切到对应输入源，登录 Linux 图形桌面。
+2. **运行向导。** 下载并解压本项目（或克隆仓库），在项目目录打开终端，以普通桌面用户运行下面的命令。如果缺少工具，向导会先列出要安装的软件包和命令。按提示设置至少 8 个字符的遥控口令，并确认让服务随图形登录启动。
+
+   ```sh
+   sh install.sh --setup
+   ```
+
+3. **扫码连接。** 手机或平板连到与电脑相通的家庭 Wi-Fi，扫描电视上的二维码并输入遥控口令。电脑可以用网线连接路由器。也可以在手机浏览器直接输入二维码旁的网址。有多个接口时，选择连接家庭路由器的那一个。
+4. **试滑一下。** 在手机页面的触控板上单指滑动，确认电视上的指针跟着移动。要输入文字，先轻点电视画面里的输入框，再展开手机上的「键盘与快捷键」。
+
+以后要连接另一部手机，或路由器给电脑分配了新地址，在 Linux 应用菜单打开 **「连接手机」** 即可重新显示当前地址和二维码。二维码在电脑上生成，只包含遥控网址。请在可信局域网使用，禁止公网端口转发。
+
+<details>
+<summary>手动安装、自定义配置与排错</summary>
+
+## 手动安装
+
+向导适用于有 systemd 用户会话的 Linux 图形桌面。要单独检查桌面工具，运行 `sh install.sh --check`。要自行管理服务，在连接电视的 Linux 电脑上以普通用户运行以下命令。
 
 ```sh
-sh install.sh --check
 sh install.sh --install
 ```
 
-安装器在用户目录复制程序及用户服务文件，交互式设置至少 8 个字符的口令。建议设置更长的独立口令。配置默认在 `~/.config/ipad-tv-remote/`，支持 `XDG_CONFIG_HOME`。口令以加盐哈希保存，认证文件必须属于当前用户且权限为 `0600`。重复安装保留配置和口令。安装器只复制文件和创建初始配置，服务启动由以下命令控制。
+安装器在用户目录复制程序、应用菜单入口和用户服务文件，首次使用时交互式设置口令。配置默认在 `~/.config/ipad-tv-remote/`，支持 `XDG_CONFIG_HOME`。口令以加盐哈希保存，认证文件必须属于当前用户且权限为 `0600`。重复安装保留配置和口令。使用 `--install` 时可按下文手动启动服务。
 
-Fedora 的 X11 依赖可用 `sudo dnf install python3 xdotool xclip playerctl glib2` 安装。Arch 系可用 `sudo pacman -S python xdotool xclip playerctl glib2`。已有可用的 `xsel` 时也可作为 X11 剪贴板工具。`playerctl` 可选，播放控制失败时会回退到媒体键。系统音量依次尝试 `wpctl`（PipeWire）、`pactl`（PulseAudio 或 PipeWire 的 PulseAudio 兼容服务）和 `amixer`（ALSA 的 Master 控件）。
+若自行安装依赖，以下是 X11 桌面和扫码连接页所用的软件包。向导会检查现有工具，只列出缺项。
 
-## 配置和启动
+| 发行版 | X11 和连接页 |
+| --- | --- |
+| Debian / Ubuntu | `python3 xdotool xclip libglib2.0-bin iproute2 qrencode` |
+| Fedora | `python3 xdotool xclip glib2 iproute qrencode` |
+| Arch | `python xdotool xclip glib2 iproute2 qrencode` |
 
-编辑 `~/.config/ipad-tv-remote/config.json`。默认监听 IPv4 的 8765 端口，应用层只接受环回和 RFC1918 私网来源。建议把 `networks` 缩小到环回和 Linux 电脑所在的可信网段，例如 `["127.0.0.0/8", "192.168.1.0/24"]`。如希望只在指定接口监听，可将 `bind` 改成 Linux 电脑的固定私网 IP。使用 IP 地址时无需配置 `hosts`。使用可信本地域名时，在 `hosts` 中明确列出它。快捷网站支持固定 `id`、`name`、HTTP(S) `url` 和可选十六进制 `color`，须保留 `youtube` 条目。
+已安装的 `xsel` 也可用于 X11 剪贴板。`playerctl` 可选，播放控制失败时会回退到媒体键。系统音量依次尝试 `wpctl`（PipeWire）、`pactl`（PulseAudio 或 PipeWire 的 PulseAudio 兼容服务）和 `amixer`（ALSA 的 Master 控件）。如果三者都缺少，向导会建议安装提供 `pactl` 的软件包。
+
+## 自定义配置和手动启动
+
+需要调整端口、网段或网站时，再编辑 `~/.config/ipad-tv-remote/config.json`。默认监听 IPv4 的 8765 端口，应用层只接受环回和 RFC1918 私网来源。可把 `networks` 缩小到环回和 Linux 电脑所在的可信网段，例如 `["127.0.0.0/8", "192.168.1.0/24"]`。如希望只在指定接口监听，可将 `bind` 改成 Linux 电脑的固定私网 IP。使用 IP 地址时无需配置 `hosts`。使用可信本地域名时，在 `hosts` 中明确列出它。快捷网站支持固定 `id`、`name`、HTTP(S) `url` 和可选十六进制 `color`，须保留 `youtube` 条目。
 
 在 Linux 电脑的图形桌面终端执行以下命令，导入 X11 会话变量，启动并启用用户服务，最后查看电脑的局域网地址。
 
@@ -66,7 +90,7 @@ Environment=YDOTOOL_SOCKET=/run/ydotool/remote.sock
 3. 在 Linux 桌面的文本编辑器中测试发送 `English 中文 🙂`、发送并回车、退格和方向键。再在浏览器中检查 Enter、Esc 和常用快捷键。文字会通过剪贴板粘贴并覆盖之前的内容。应用须支持 Ctrl+V。
 4. 播放测试视频，分别试音量增减、静音和播放／暂停。在桌面声音设置核对默认输出的变化。若使用 PulseAudio，可在桌面终端用 `pactl info` 查看当前服务和默认输出。用 `playerctl status` 查看可控媒体会话。
 5. 点击 YouTube 按钮确认 Firefox 或当前默认浏览器打开网站。查询 `中文 空格 & + ? #`，核对 YouTube 搜索框显示原关键词。
-6. 退出桌面后重新登录，重新执行 `systemctl --user status ipad-tv-remote.service` 并从手机或平板连接。若服务未随登录启动，检查 `systemctl --user is-active graphical-session.target`。若桌面环境没有激活此 target，可先在图形终端手动启动，或用该桌面的自启动机制在导入图形环境后调用 `systemctl --user start ipad-tv-remote.service`。
+6. 退出桌面后重新登录，执行 `systemctl --user status ipad-tv-remote.service` 并从手机或平板连接。向导在当前桌面未激活 `graphical-session.target` 时，会同时添加桌面登录自启项。若未随登录启动，在桌面的「启动应用」设置中检查「启动电视遥控器」是否启用。
 7. 在手机或平板上检查旋转屏幕、软键盘、中文输入法和触控板。使用旧 iPad 时，在 Safari 普通标签页和从主屏幕启动的页面中分别测试。
 
 查看日志和当前图形用户服务环境：
@@ -78,20 +102,28 @@ systemctl --user show-environment | grep -E '^(DISPLAY|XAUTHORITY|WAYLAND_DISPLA
 
 出现 503 时先检查图形变量、后端工具及桌面应用焦点。浏览器打不开时在图形终端验证 `gio open https://www.youtube.com/`。若服务遇到启动限速，修正配置后执行 `systemctl --user reset-failed ipad-tv-remote.service`，再执行 `systemctl --user start ipad-tv-remote.service`。若 Linux 电脑可访问遥控页面，但手机或平板无法连接，核对绑定 IP、来源网段、主机防火墙和 Wi‑Fi 的客户端隔离。
 
-## 验证状态
+</details>
+
+<details>
+<summary>验证记录</summary>
 
 | 项目 | 结果 |
 | --- | --- |
-| 环境发现 | Ubuntu 20.04.6 LTS、GNOME/X11、`DISPLAY=:0`、Firefox。测试环境的 Python 为 3.7.9，用户服务使用系统 Python 3.8.10。检测到了 `pactl`、`amixer`、`gio`、`xdg-open` 和音频运行目录。 |
-| 安装和联网 | 已安装 `xdotool`、`xclip` 和 `playerctl`，依赖检查通过。测试沙箱无法连接 X11、音频、媒体或 systemd 用户总线，也禁止 IPv4 监听和网卡探测。使用真实依赖启动进程已通过配置和后端初始化，随后在监听阶段退出。LAN IP、实际音频后端、用户服务和实机桌面动作仍待在图形桌面终端验证。 |
+| 原 Ubuntu 环境 | Ubuntu 20.04.6 LTS、GNOME/X11、Firefox、系统 Python 3.8.10。此前已通过 X11 依赖检查。原测试沙箱限制了桌面、用户总线和网络访问，目标电视电脑上的实际联网和桌面操作仍待验证。 |
+| 安装向导与扫码 | Debian 13 容器中以普通用户运行 `sh install.sh --setup`，在隔离网卡上通过真实 HTTP 验证登录、口令拒绝和自定义端口。Firefox 在 Xvfb 虚拟显示上打开了连接页，二维码可从 1280×720 的浏览器截图解码为正确网址。应用菜单入口能重新生成连接页。 |
+| 虚拟桌面操作 | 通过真实 HTTP 请求在 Xvfb 上移动指针，把包含中文和 emoji 的文字粘贴进 Firefox，并在默认浏览器中打开配置的网站。PulseAudio 虚拟输出的音量和静音状态随操作改变。 |
+| 用户服务与卸载 | 容器中验证了 systemd 单元文件、真实启用链接和桌面自启入口。容器没有完整的图形登录会话，用户管理器的启停操作由替身执行。卸载后，菜单项、自启项、程序和缓存二维码被移除，配置和口令保留。真实注销后重新登录、物理音频和 Wayland 输入仍待在电视电脑上验证。 |
 | 自动化 | 通过内存 HTTP 测试和桌面命令替身验证登录、限速、Cookie、同源、来源限制、白名单、搜索编码、拖动超时和后端命令参数。Node 合成触控事件覆盖轻点、移动、长按、释放、取消、离开页面和双指滚动。 |
 | 安装脚本 | 临时用户目录测试通过，重装与卸载均保留自定义配置和口令。已用真实 X11 依赖复测临时目录安装。卸载测试的 systemd 调用使用替身。`systemd-analyze verify` 返回成功。 |
 | 页面布局 | 使用 QtWebKit 和模拟的已登录会话，在 1024×768、768×1024 和 320×568 下检查了页面宽度、按钮尺寸、键盘面板的展开收起，以及网站和浏览器快捷键的请求。 |
 | 移动端实机 | 手机和平板的实机测试待完成，包括登录、触控手势、中文输入和屏幕旋转。旧 iPad Safari 还需验证从主屏幕启动。 |
 
-## 卸载和开发检查
+</details>
 
-`sh uninstall.sh` 停用用户服务并移除安装的程序，保留口令、网站配置和自定义服务覆盖文件。修改配置后用 `systemctl --user restart ipad-tv-remote.service` 使其生效。
+<details>
+<summary>卸载和开发检查</summary>
+
+在同一桌面用户的终端运行 `sh uninstall.sh`，会停用用户服务并移除程序、「连接手机」菜单项、向导创建的登录项和本地连接页。口令、网站配置及自定义服务覆盖文件会保留。
 
 ```sh
 /usr/bin/python3 -m unittest discover -s tests -v
@@ -100,3 +132,5 @@ node --check static/app.js
 sh -n install.sh
 sh -n uninstall.sh
 ```
+
+</details>

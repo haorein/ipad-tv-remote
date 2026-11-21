@@ -29,16 +29,19 @@ VOLUME = {
 }
 
 
+def resolve_backend(backend):
+    if backend != "auto":
+        return backend
+    session = os.environ.get("XDG_SESSION_TYPE")
+    if session == "wayland" or (session != "x11" and os.environ.get("WAYLAND_DISPLAY")):
+        return "wayland"
+    return "x11"
+
+
 class Desktop:
     def __init__(self, backend):
-        if backend == "auto":
-            session = os.environ.get("XDG_SESSION_TYPE")
-            if session == "wayland" or (session != "x11" and os.environ.get("WAYLAND_DISPLAY")):
-                backend = "wayland"
-            else:
-                backend = "x11"
-        self.backend = backend
-        self.x11 = backend == "x11"
+        self.backend = resolve_backend(backend)
+        self.x11 = self.backend == "x11"
         display = "DISPLAY" if self.x11 else "WAYLAND_DISPLAY"
         if not os.environ.get(display):
             raise ValueError("Missing graphical environment: " + display)
