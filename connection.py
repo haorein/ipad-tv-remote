@@ -5,7 +5,6 @@ import ipaddress
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
@@ -18,23 +17,6 @@ class Endpoint(NamedTuple):
     interface: str
     url: str
     alternate: bool
-    mac: str = ""
-    broadcast: str = ""
-    wake_status: str = ""
-
-
-def wifi_wake_status(interface):
-    try:
-        phy = (Path("/sys/class/net") / interface / "phy80211" / "name").read_text().strip()
-        if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", phy):
-            raise ValueError
-        result = subprocess.run(["iw", "phy", phy, "info"], check=True, timeout=3,
-                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    except (OSError, ValueError, subprocess.SubprocessError):
-        return "未能读取无线唤醒能力。请在电脑上用 iw list 检查 WoWLAN support。"
-    if b"wake up on magic packet" in result.stdout:
-        return "无线驱动报告支持唤醒包。请按 README 启用 WoWLAN，然后合盖实测。"
-    return "当前无线驱动未报告支持唤醒包。可在接电使用电视时让电脑保持运行。"
 
 
 def connection_addresses(config, interfaces):
@@ -42,8 +24,7 @@ def connection_addresses(config, interfaces):
     addresses = set()
     for interface in interfaces:
         name = interface["ifname"]
-        if (not name.isprintable() or "/" in name or name in (".", "..")
-                or interface.get("operstate") in ("DOWN", "LOWERLAYERDOWN")):
+        if not name.isprintable() or interface.get("operstate") in ("DOWN", "LOWERLAYERDOWN"):
             continue
         kind = interface.get("linkinfo", {}).get("info_kind", "")
         alternate = False
@@ -51,13 +32,12 @@ def connection_addresses(config, interfaces):
             label, alternate = "VPN / 隧道", True
         elif kind == "veth" or name.startswith(("docker", "virbr", "veth", "br-")):
             label, alternate = "虚拟网络", True
-        elif name.startswith("wl") or (Path("/sys/class/net") / name / "phy80211").is_dir():
+        elif name.startswith("wl"):
             label = "Wi-Fi"
         elif name.startswith(("en", "eth")):
             label = "有线网络"
         else:
             label = "网络接口"
-        wake_status = None
         for info in interface["addr_info"]:
             if info["family"] != "inet" or info["scope"] != "global":
                 continue
@@ -72,20 +52,12 @@ def connection_addresses(config, interfaces):
             if routed:
                 title += "（仅允许从配置的其他网段访问）"
             url = "http://{}:{}/".format(link.ip, config["port"])
-            mac = interface.get("address", "")
-            if (not alternate and not routed and not kind and interface.get("link_type") == "ether"
-                    and link.network.prefixlen <= 30 and re.fullmatch(r"(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}", mac)
-                    and mac != "00:00:00:00:00:00" and not (int(mac[:2], 16) & 1)):
-                if label == "Wi-Fi" and wake_status is None:
-                    wake_status = wifi_wake_status(name)
-                addresses.add(Endpoint(title, url, False, mac, str(link.network.broadcast_address), wake_status or ""))
-            else:
-                addresses.add(Endpoint(title, url, alternate or routed))
+            addresses.add(Endpoint(title, url, alternate or routed))
     return sorted(addresses, key=lambda entry: (entry.alternate, entry.interface, entry.url))
 
 
 def discover_addresses(config):
-    result = subprocess.run(["ip", "-j", "-d", "address", "show", "up"], check=True,
+    result = subprocess.run(["ip", "-j", "-d", "-4", "address", "show", "up"], check=True,
                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=3)
     return connection_addresses(config, json.loads(result.stdout))
 
@@ -106,17 +78,8 @@ def connection_page(addresses, problem):
     cards = []
     for endpoint in addresses:
         image = qr_image(endpoint.url)
-        wake = ""
-        if endpoint.mac:
-            wake = ('<details><summary>从休眠唤醒电脑</summary>'
-                    '{}'
-                    '<p>电脑启用网络唤醒后，在手机的 WoL 工具中保存以下信息。</p>'
-                    '<p>网卡 MAC <code>{}</code><br>广播地址 <code>{}</code><br>UDP 端口 <code>9</code></p>'
-                    '<p>休眠后，在同一家庭网络发送唤醒包，再回到遥控器。</p></details>'
-                    ).format("<p>{}</p>".format(escape(endpoint.wake_status)) if endpoint.wake_status else "",
-                             escape(endpoint.mac), escape(endpoint.broadcast))
-        cards.append('<section><h2>{}</h2>{}<p class="url">{}</p>{}</section>'.format(
-            escape(endpoint.interface), image or "<p>请在手机浏览器中输入下方网址。</p>", escape(endpoint.url), wake))
+        cards.append('<section><h2>{}</h2>{}<p class="url">{}</p></section>'.format(
+            escape(endpoint.interface), image or "<p>请在手机浏览器中输入下方网址。</p>", escape(endpoint.url)))
     regular = sum(not endpoint.alternate for endpoint in addresses)
     content = "".join(cards[:regular])
     if regular and regular < len(cards):
@@ -135,7 +98,6 @@ padding:.8em 1em;text-align:center;background:#1b2423;border:1px solid #53615c;b
 h2 {{font-size:1em;margin:0 0 .7em}} img {{display:block;margin:auto;max-width:100%;height:auto}}
 .url {{font: bold 1.1em/1.4 monospace;color:#b3eece;overflow-wrap:anywhere;margin:.7em 0 0}}
 summary {{cursor:pointer;margin:0 0 .8em}}
-section details {{margin-top:1em;font-size:.75em}}
 @media (max-width:600px) {{body {{font-size:18px}} section {{margin:0 0 1em}}}}
 @media(max-width:580px) {{body {{font-size:18px}} section {{display:block;margin:0 0 1em}}}}
 </style></head><body><main><h1>连接手机或平板</h1><p>{}</p>{}</main></body></html>""".format(

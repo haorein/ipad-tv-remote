@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from connection import Endpoint, connection_addresses, connection_page, main, qr_image, show_page, wifi_wake_status
+from connection import Endpoint, connection_addresses, connection_page, main, qr_image, show_page
 from server import ROOT, load_config
 
 
@@ -48,36 +48,6 @@ class ConnectionTest(unittest.TestCase):
         self.config = load_config(ROOT / "config.example.json")
         self.config["bind"] = "127.0.0.1"
         self.assertEqual(connection_addresses(self.config, self.interfaces), [])
-
-    @patch("connection.qr_image", return_value="")
-    @patch("connection.wifi_wake_status", return_value="无线驱动报告支持唤醒包")
-    def test_wake_pairing_uses_local_wifi_mac_and_actual_subnet(self, probe, qr):
-        hw = {"link_type": "ether", "address": "02:11:22:33:44:55"}
-        wifi = interface("wlan0", "192.168.6.90/23", **hw)
-        virtual = interface("docker0", "172.17.0.1/16", **hw)
-        endpoints = connection_addresses(self.config, [virtual, wifi])
-        self.assertEqual((endpoints[0].mac, endpoints[0].broadcast), (hw["address"], "192.168.7.255"))
-        self.assertFalse(endpoints[1].mac)
-        probe.assert_called_once_with("wlan0")
-        html = connection_page(endpoints, "")
-        self.assertIn("无线驱动报告支持唤醒包", html)
-        self.assertIn("192.168.7.255", html)
-        self.assertIn(hw["address"], html)
-        self.assertEqual([call[0][0] for call in qr.call_args_list], [item.url for item in endpoints])
-        for mac in ("00:00:00:00:00:00", "01:23:45:67:89:ab", "invalid"):
-            self.assertFalse(connection_addresses(self.config, [dict(wifi, address=mac)])[0].mac)
-        self.assertFalse(connection_addresses(self.config, [interface("wlan0", "192.168.7.90/32", **hw)])[0].mac)
-
-    @patch("connection.subprocess.run")
-    @patch("connection.Path.read_text", return_value="phy2\n")
-    def test_wireless_wake_check(self, read, run):
-        run.return_value.stdout = b"WoWLAN support:\n * wake up on magic packet\n"
-        self.assertIn("报告支持", wifi_wake_status("wlan0"))
-        self.assertEqual(run.call_args[0][0], ["iw", "phy", "phy2", "info"])
-        run.return_value.stdout = b"WoWLAN support:\n * wake up on disconnect\n"
-        self.assertIn("未报告支持", wifi_wake_status("wlan0"))
-        run.side_effect = FileNotFoundError()
-        self.assertIn("未能读取", wifi_wake_status("wlan0"))
 
     @patch("connection.subprocess.run")
     def test_qr_uses_url_only_and_offline_fallback(self, run):
