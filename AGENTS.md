@@ -2,7 +2,7 @@
 
 ## Mission
 
-Build and verify the old-iPad-to-Linux-TV LAN web remote described in `SPEC.md`. Treat `SPEC.md` as the product source of truth. The goal is a working installation on this Linux TV computer, not a code sample.
+Build and verify 客厅遥控板 (linux-tv-remote), the phone and tablet LAN web remote described in `SPEC.md`. Treat `SPEC.md` as the product source of truth. The goal is a working installation on this Linux TV computer, not a code sample.
 
 ## Required workflow
 

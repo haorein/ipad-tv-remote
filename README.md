@@ -1,16 +1,16 @@
-# 用旧电脑驱动电视
+# 客厅遥控板
 
-给旧电脑装上带图形桌面的 Linux，通过 HDMI 等视频接口接到电视。用电脑上的浏览器播放 YouTube 等视频网站的内容，省下一个电视盒子。
+把旧 Linux 电脑接上电视，用手机或平板扫码，就能移动鼠标、输入文字、搜索和播放视频。
 
-手机或平板和 Linux 电脑连到同一可信局域网后，用移动浏览器打开遥控页面，就能把手里的设备当触控板和键盘，无需安装 App。可以点击、拖动、滚动、输入中英文，也能调音量、控制播放和搜索当前视频网站。页面设计也兼顾旧版 iPad Safari。
+电脑上的浏览器负责播放，省下一个电视盒子。手机或平板连到同一家庭网络后，就能用浏览器当触控板和键盘，无需安装 App。页面设计也兼顾旧版 iPad Safari。
 
 ## 首次使用
 
 1. **接上电视。** 用 HDMI 等视频接口连接 Linux 电脑和电视，在电视上切到对应输入源，登录 Linux 图形桌面。
-2. **从终端安装。** 在 Linux 图形桌面上以普通用户打开终端，复制下面这行命令。Git 会将项目下载到当前目录下的 `ipad-tv-remote`，然后启动交互式安装向导。按提示确认所需依赖，设置至少 8 个字符的遥控口令，并启用登录自启。
+2. **从终端安装。** 在 Linux 图形桌面上以普通用户打开终端，复制下面这行命令。Git 会将项目下载到当前目录下的 `linux-tv-remote`，然后启动交互式安装向导。按提示确认所需依赖，设置至少 8 个字符的遥控口令，并启用登录自启。
 
    ```sh
-   git clone --depth 1 https://github.com/haorein/ipad-tv-remote.git && sh ipad-tv-remote/install.sh --setup
+   git clone --depth 1 https://github.com/haorein/linux-tv-remote.git && sh linux-tv-remote/install.sh --setup
    ```
 
 3. **扫码连接。** 手机或平板连到与电脑相通的家庭 Wi-Fi，扫描电视上的二维码并输入遥控口令。电脑可以用网线连接路由器。也可以在手机浏览器直接输入二维码旁的网址。有多个接口时，选择连接家庭路由器的那一个。
@@ -20,21 +20,21 @@
 
 要把视频铺满电视，点「播放 / 暂停」旁的 **「视频全屏」**。从遥控器打开 YouTube 时，按钮使用播放器的 `F` 快捷键。酷播和欧乐开始播放后，先用触控板把电视指针移到视频画面中间，再点「视频全屏」。同一个按钮再点一次即可退出。其他站点也会收到一次画面双击，效果取决于播放器。
 
-以后要连接另一部手机，或路由器给电脑分配了新地址，在 Linux 应用菜单打开 **「连接手机」** 即可重新显示当前地址和二维码。二维码在电脑上生成，只包含遥控网址。请在可信局域网使用，禁止公网端口转发。
+以后要连接另一部手机，或路由器给电脑分配了新地址，在 Linux 应用菜单打开 **「客厅遥控板 · 连接手机」** 即可重新显示当前地址和二维码。二维码在电脑上生成，只包含遥控网址。请在可信局域网使用，禁止公网端口转发。
 
 <details>
 <summary>手动安装、自定义配置与排错</summary>
 
 ## 手动安装
 
-已有项目目录时，从该目录执行 `sh install.sh --setup` 即可重新运行向导。通过 Git 克隆的用户可执行 `git pull --ff-only && sh install.sh --setup` 更新安装。已有口令和网站配置会保留。
+已有项目目录时，从该目录执行 `sh install.sh --setup` 即可重新运行向导。通过 Git 克隆的用户可执行 `git pull --ff-only && sh install.sh --setup` 更新安装。原先克隆到 `ipad-tv-remote` 的用户也可以在原目录更新。为兼容已有安装，Linux 端沿用 `ipad-tv-remote.service` 和原配置目录，已有口令和网站配置会保留。
 
 电脑上只有 curl 和 tar 时，也可以用下面的命令下载源码并启动同一个向导。请在可写目录中执行。第一步会新建源码目录，若已有同名目录，命令会停止。
 
 ```sh
-mkdir ipad-tv-remote && (
-  cd ipad-tv-remote &&
-  curl -fL https://github.com/haorein/ipad-tv-remote/archive/refs/heads/main.tar.gz -o source.tar.gz &&
+mkdir linux-tv-remote && (
+  cd linux-tv-remote &&
+  curl -fL https://github.com/haorein/linux-tv-remote/archive/refs/heads/main.tar.gz -o source.tar.gz &&
   tar -xzf source.tar.gz --strip-components=1 &&
   sh install.sh --setup
 )
@@ -111,7 +111,7 @@ Environment=YDOTOOL_SOCKET=/run/ydotool/remote.sock
 3. 在 Linux 桌面的文本编辑器中测试发送 `English 中文 🙂`、发送并回车、退格和方向键。再在浏览器中检查 Enter、Esc 和常用快捷键。文字会通过剪贴板粘贴并覆盖之前的内容。应用须支持 Ctrl+V。
 4. 播放测试视频，分别试音量增减、静音和播放／暂停。在桌面声音设置核对默认输出的变化。若使用 PulseAudio，可在桌面终端用 `pactl info` 查看当前服务和默认输出。用 `playerctl status` 查看可控媒体会话。
 5. 依次打开两个配置了搜索网址的网站，在手机输入 `中文 空格 & + ? #`，核对遥控器显示的站名、电视上的结果网站和关键词。对于未配置搜索网址的自定义网站，点中电视上的搜索框，测试粘贴并回车。
-6. 退出桌面后重新登录，执行 `systemctl --user status ipad-tv-remote.service` 并从手机或平板连接。向导在当前桌面未激活 `graphical-session.target` 时，会同时添加桌面登录自启项。若未随登录启动，在桌面的「启动应用」设置中检查「启动电视遥控器」是否启用。
+6. 退出桌面后重新登录，执行 `systemctl --user status ipad-tv-remote.service` 并从手机或平板连接。向导在当前桌面未激活 `graphical-session.target` 时，会同时添加桌面登录自启项。若未随登录启动，在桌面的「启动应用」设置中检查「启动客厅遥控板」是否启用。
 7. 在手机或平板上检查旋转屏幕、软键盘、中文输入法和触控板。使用旧 iPad 时，在 Safari 普通标签页和从主屏幕启动的页面中分别测试。
 
 查看日志和当前图形用户服务环境：
@@ -147,7 +147,7 @@ systemctl --user show-environment | grep -E '^(DISPLAY|XAUTHORITY|WAYLAND_DISPLA
 <details>
 <summary>卸载和开发检查</summary>
 
-在同一桌面用户的终端运行 `sh uninstall.sh`，会停用用户服务并移除程序、「连接手机」菜单项、向导创建的登录项和本地连接页。口令、网站配置及自定义服务覆盖文件会保留。
+在同一桌面用户的终端运行 `sh uninstall.sh`，会停用用户服务并移除程序、「客厅遥控板 · 连接手机」菜单项、向导创建的登录项和本地连接页。口令、网站配置及自定义服务覆盖文件会保留。
 
 ```sh
 /usr/bin/python3 -m unittest discover -s tests -v

@@ -1,5 +1,5 @@
 [Unit]
-Description=iPad LAN TV remote
+Description=客厅遥控板 (Linux TV Remote)
 PartOf=graphical-session.target
 StartLimitIntervalSec=60
 StartLimitBurst=3

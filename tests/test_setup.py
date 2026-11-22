@@ -12,6 +12,7 @@ from unittest.mock import Mock, call, patch
 
 import session_start
 import setup_wizard
+from install_launcher import install_launcher
 from server import load_config
 
 
@@ -52,6 +53,20 @@ class SetupTest(unittest.TestCase):
         self.graphical_target_active = True
         self.events = []
         self.output = StringIO()
+
+    def test_rebrand_updates_only_stock_login_entry(self):
+        install_launcher(autostart=True)
+        current = self.autostart_file.read_text()
+        self.assertIn("Name=启动客厅遥控板\n", current)
+        old = current.replace("Name=启动客厅遥控板\n", "Name=启动电视遥控器\n")
+        self.autostart_file.write_text(old)
+        install_launcher(autostart=True)
+        self.assertEqual(self.autostart_file.read_text(), current)
+
+        customized = old + "Hidden=true\n"
+        self.autostart_file.write_text(customized)
+        install_launcher(autostart=True)
+        self.assertEqual(self.autostart_file.read_text(), customized)
 
     def run_command(self, command, **_kwargs):
         command = tuple(map(str, command))

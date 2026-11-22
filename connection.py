@@ -89,7 +89,7 @@ def connection_page(addresses, problem):
     return """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
-<title>连接手机或平板</title>
+<title>客厅遥控板 · 连接手机或平板</title>
 <style>
 * {{box-sizing:border-box}} body {{margin:0;background:#101617;color:#f1f6f3;font:24px/1.5 sans-serif}}
 main {{max-width:1150px;margin:auto;padding:4vh 4vw;text-align:center}} h1 {{margin:0;font-size:1.8em}}
@@ -100,7 +100,7 @@ h2 {{font-size:1em;margin:0 0 .7em}} img {{display:block;margin:auto;max-width:1
 summary {{cursor:pointer;margin:0 0 .8em}}
 @media (max-width:600px) {{body {{font-size:18px}} section {{margin:0 0 1em}}}}
 @media(max-width:580px) {{body {{font-size:18px}} section {{display:block;margin:0 0 1em}}}}
-</style></head><body><main><h1>连接手机或平板</h1><p>{}</p>{}</main></body></html>""".format(
+</style></head><body><main><h1>客厅遥控板 · 连接手机或平板</h1><p>{}</p>{}</main></body></html>""".format(
         escape(problem or "手机或平板连到与电脑相同的可信局域网，扫描对应的二维码或输入网址，再输入遥控口令。"),
         content)
 
@@ -137,7 +137,7 @@ def main():
         else:
             addresses = discover_addresses(config)
             if not addresses:
-                problem = "找不到可用的局域网地址。请连接家庭网络，检查 config.json 的 bind 和 networks，再打开「连接手机」。"
+                problem = "找不到可用的局域网地址。请连接家庭网络，检查 config.json 的 bind 和 networks，再打开「客厅遥控板 · 连接手机」。"
     except (OSError, subprocess.SubprocessError, TypeError, KeyError, ValueError):
         problem = "无法读取网络接口或遥控配置。请检查 ip 命令和 config.json，或在项目目录重新运行 sh install.sh --setup。"
     if problem:
